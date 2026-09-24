@@ -27,6 +27,7 @@ const getProducts = (req, res) => {
 
       return res.status(500).json({
         message: "Failed to get products",
+        error: err.message,
       });
     }
 
