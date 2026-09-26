@@ -14,7 +14,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   }),
@@ -45,13 +45,6 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/shop", shopRoutes);
 app.use("/api/payment-methods", paymentRoutes);
-
-app.get("/cors-test", (req, res) => {
-  res.json({
-    message: "CORS is working",
-    origin: req.headers.origin || null,
-  });
-});
 
 // ==============================
 // HOME
