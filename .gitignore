@@ -21,3 +21,5 @@ Thumbs.db
 
 #image file
 uploads/
+.vercel
+.env*

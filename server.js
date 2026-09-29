@@ -28,7 +28,7 @@ app.use(express.json());
 // UPLOADS
 // ==============================
 
-app.use("/uploads", express.static("uploads"));
+// app.use("/uploads", express.static("uploads"));
 
 // ==============================
 // ROUTES

@@ -1,5 +1,4 @@
 const express = require("express");
-const multer = require("multer");
 
 const router = express.Router();
 
@@ -12,24 +11,7 @@ const {
 } = require("../controllers/productController");
 
 const protect = require("../middleware/authMiddleware");
-
-// Image storage configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-
-  filename: (req, file, cb) => {
-    const uniqueName =
-      Date.now() + "-" + file.originalname.replace(/\s+/g, "-");
-
-    cb(null, uniqueName);
-  },
-});
-
-const upload = multer({
-  storage: storage,
-});
+const upload = require("../middleware/uploadMiddleware");
 
 // Public routes
 router.get("/", getProducts);
