@@ -1,17 +1,18 @@
 const db = require("../db/dbConfige");
+const uploadToBlob = require("../utils/blobUpload");
 
 // GET shop
 const getShop = (req, res) => {
   const sql = `
-        SELECT
-            id,
-            name,
-            logo,
-            qr_code,
-            created_at
-        FROM shops
-        WHERE id = 1
-    `;
+    SELECT
+      id,
+      name,
+      logo,
+      qr_code,
+      created_at
+    FROM shops
+    WHERE id = 1
+  `;
 
   db.query(sql, (err, results) => {
     if (err) {
@@ -19,6 +20,7 @@ const getShop = (req, res) => {
 
       return res.status(500).json({
         message: "Failed to get shop",
+        error: err.message,
       });
     }
 
@@ -33,57 +35,83 @@ const getShop = (req, res) => {
 };
 
 // UPDATE shop
-const updateShop = (req, res) => {
-  const { name } = req.body;
+const updateShop = async (req, res) => {
+  try {
+    const { name } = req.body;
 
-  let sql;
-  let values;
+    // New logo uploaded
+    if (req.file) {
+      const logo = await uploadToBlob(req.file);
 
-  // New logo uploaded
-  if (req.file) {
-    const logo = `/uploads/${req.file.filename}`;
+      const sql = `
+        UPDATE shops
+        SET
+          name = ?,
+          logo = ?
+        WHERE id = 1
+      `;
 
-    sql = `
-            UPDATE shops
-            SET
-                name = ?,
-                logo = ?
-            WHERE id = 1
-        `;
+      db.query(sql, [name, logo], (err, result) => {
+        if (err) {
+          console.error(err);
 
-    values = [name, logo];
-  } else {
-    // Keep existing logo
-    sql = `
-            UPDATE shops
-            SET
-                name = ?
-            WHERE id = 1
-        `;
+          return res.status(500).json({
+            message: "Failed to update shop",
+            error: err.message,
+          });
+        }
 
-    values = [name];
-  }
+        if (result.affectedRows === 0) {
+          return res.status(404).json({
+            message: "Shop not found",
+          });
+        }
 
-  db.query(sql, values, (err, result) => {
-    if (err) {
-      console.error(err);
-
-      return res.status(500).json({
-        message: "Failed to update shop",
+        res.json({
+          message: "Shop updated successfully",
+          logo,
+        });
       });
+
+      return;
     }
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        message: "Shop not found",
-      });
-    }
+    // No new logo — keep existing logo
+    const sql = `
+      UPDATE shops
+      SET
+        name = ?
+      WHERE id = 1
+    `;
 
-    res.json({
-      message: "Shop updated successfully",
-      logo: req.file ? `/uploads/${req.file.filename}` : null,
+    db.query(sql, [name], (err, result) => {
+      if (err) {
+        console.error(err);
+
+        return res.status(500).json({
+          message: "Failed to update shop",
+          error: err.message,
+        });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          message: "Shop not found",
+        });
+      }
+
+      res.json({
+        message: "Shop updated successfully",
+      });
     });
-  });
+  } catch (error) {
+    console.error("Blob upload error:", error);
+
+    res.status(500).json({
+      message: "Failed to upload shop logo",
+      error: error.message,
+    });
+  }
 };
 
 module.exports = {
