@@ -39,12 +39,14 @@ const categoryRoutes = require("./Routes/categoryRoutes");
 const authRoutes = require("./Routes/authRoutes");
 const shopRoutes = require("./Routes/shopRoutes");
 const paymentRoutes = require("./Routes/paymentRoutes");
+const bannerRoutes = require("./Routes/bannerRoutes");
 
 app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/shop", shopRoutes);
 app.use("/api/payment-methods", paymentRoutes);
+app.use("/api/banners", bannerRoutes);
 
 // ==============================
 // HOME
