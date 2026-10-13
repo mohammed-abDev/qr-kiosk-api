@@ -40,6 +40,8 @@ const authRoutes = require("./Routes/authRoutes");
 const shopRoutes = require("./Routes/shopRoutes");
 const paymentRoutes = require("./Routes/paymentRoutes");
 const bannerRoutes = require("./Routes/bannerRoutes");
+const customerRoutes = require("./Routes/customerRoutes");
+const creditRoutes = require("./Routes/creditRoutes");
 
 app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
@@ -47,6 +49,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/shop", shopRoutes);
 app.use("/api/payment-methods", paymentRoutes);
 app.use("/api/banners", bannerRoutes);
+app.use("/api/customers", customerRoutes);
+app.use("/api/credit", creditRoutes);
 
 // ==============================
 // HOME
