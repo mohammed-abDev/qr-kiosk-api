@@ -2,7 +2,9 @@ const db = require("../db/dbConfige");
 
 // CREATE A CREDIT PURCHASE
 const createCreditTransaction = async (req, res) => {
+    console.log("TEST: createCreditTransaction was called");
   let connection;
+  
 
   try {
     const { customer_id, items, notes } = req.body;
@@ -156,7 +158,81 @@ const createCreditTransaction = async (req, res) => {
     }
 
     // Commit only when the transaction and all items are saved
+    // await connection.commit();
+
+    // Create admin dashboard notification
+    const saleMessage =
+      `${customers[0].name} received goods on credit: ` +
+      `${totalAmount.toFixed(2)} ETB.`;
+
+    const [adminNotificationResult] = await connection.query(
+      `INSERT INTO credit_notifications
+   (
+     shop_id,
+     customer_id,
+     transaction_id,
+     recipient_type,
+     channel,
+     message,
+     status,
+     sent_at
+   )
+   VALUES (?, ?, ?, 'admin', 'dashboard', ?, 'sent', CURRENT_TIMESTAMP)`,
+      [shopId, Number(customer_id), transactionId, saleMessage],
+    );
+
+    // Queue customer SMS for future delivery
+    const saleSmsMessage =
+      `Abdu Mart: Credit recorded: ${totalAmount.toFixed(2)} ETB. ` +
+      `Please contact the shop if you have questions.`;
+
+    // Save SMS as pending because no SMS provider is connected yet
+    await connection.query(
+      `INSERT INTO credit_notifications
+   (
+     shop_id,
+     customer_id,
+     transaction_id,
+     recipient_type,
+     channel,
+     recipient_phone,
+     message,
+     status
+   )
+   VALUES (?, ?, ?, 'customer', 'sms', ?, ?, 'pending')`,
+      [
+        shopId,
+        Number(customer_id),
+        transactionId,
+        customers[0].phone,
+        saleSmsMessage,
+      ],
+    );
+
+    // Save purchase and notifications together
     await connection.commit();
+
+   // Broadcast only after the database transaction succeeds
+const io = req.app.get("io");
+
+console.log("CREDIT SALE: Database transaction committed");
+console.log("CREDIT SALE: Socket.IO available:", Boolean(io));
+
+if (io) {
+  console.log("CREDIT SALE: Broadcasting notification:", saleMessage);
+  console.log("CREDIT SALE: Connected clients:", io.engine.clientsCount);
+
+  io.emit("credit:notification", {
+    id: adminNotificationResult.insertId,
+    type: "credit_sale",
+    customerId: Number(customer_id),
+    transactionId,
+    customerName: customers[0].name,
+    amount: totalAmount.toFixed(2),
+    message: saleMessage,
+    createdAt: new Date().toISOString(),
+  });
+}
 
     return res.status(201).json({
       message: "Credit purchase recorded successfully",
@@ -191,7 +267,6 @@ const createCreditTransaction = async (req, res) => {
     }
   }
 };
-
 
 const recordCreditPayment = async (req, res) => {
   let connection;
@@ -312,7 +387,78 @@ const recordCreditPayment = async (req, res) => {
 
     const remainingCents = outstandingCents - paymentCents;
 
+    // Create admin dashboard notification
+    const paymentMessage =
+      `${customers[0].name} repaid ${(paymentCents / 100).toFixed(2)} ETB. ` +
+      `Remaining balance: ${(remainingCents / 100).toFixed(2)} ETB.`;
+
+    const [adminNotificationResult] = await connection.query(
+      `INSERT INTO credit_notifications
+   (
+     shop_id,
+     customer_id,
+     payment_id,
+     recipient_type,
+     channel,
+     message,
+     status,
+     sent_at
+   )
+   VALUES (?, ?, ?, 'admin', 'dashboard', ?, 'sent', CURRENT_TIMESTAMP)`,
+      [shopId, Number(customer_id), result.insertId, paymentMessage],
+    );
+
+    // Queue customer SMS for future delivery
+    const paymentSmsMessage =
+      `Abdu Mart: Payment received: ${(paymentCents / 100).toFixed(2)} ETB. ` +
+      `Remaining balance: ${(remainingCents / 100).toFixed(2)} ETB.`;
+
+    // Save SMS as pending until an SMS provider is connected
+    await connection.query(
+      `INSERT INTO credit_notifications
+   (
+     shop_id,
+     customer_id,
+     payment_id,
+     recipient_type,
+     channel,
+     recipient_phone,
+     message,
+     status
+   )
+   VALUES (?, ?, ?, 'customer', 'sms', ?, ?, 'pending')`,
+      [
+        shopId,
+        Number(customer_id),
+        result.insertId,
+        customers[0].phone,
+        paymentSmsMessage,
+      ],
+    );
+
+    // Commit repayment and notifications together
     await connection.commit();
+
+    // Broadcast repayment notification after successful commit
+    const io = req.app.get("io");
+    console.log("REPAYMENT: Database transaction committed");
+    console.log("REPAYMENT: Socket.IO available:", Boolean(io));
+
+
+    if (io) {
+    console.log("REPAYMENT: Broadcasting notification:", paymentMessage);
+      io.emit("credit:notification", {
+        id: adminNotificationResult.insertId,
+        type: "repayment",
+        customerId: Number(customer_id),
+        paymentId: result.insertId,
+        customerName: customers[0].name,
+        amount: (paymentCents / 100).toFixed(2),
+        remainingBalance: (remainingCents / 100).toFixed(2),
+        message: paymentMessage,
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     return res.status(201).json({
       message: "Customer repayment recorded successfully",
@@ -488,8 +634,53 @@ const getCustomerCreditHistory = async (req, res) => {
   }
 };
 
+// GET ADMIN CREDIT NOTIFICATIONS
+const getCreditNotifications = async (req, res) => {
+  try {
+    // Only admins can view these notifications
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({
+        message: "Only admins can view credit notifications",
+      });
+    }
+
+    const shopId = 1;
+
+    const [notifications] = await db.promise().query(
+      `SELECT
+         id,
+         customer_id,
+         transaction_id,
+         payment_id,
+         message,
+         status,
+         created_at
+       FROM credit_notifications
+       WHERE shop_id = ?
+         AND recipient_type = 'admin'
+         AND channel = 'dashboard'
+       ORDER BY created_at DESC, id DESC
+       LIMIT 50`,
+      [shopId]
+    );
+
+    return res.status(200).json({
+      message: "Credit notifications retrieved successfully",
+      count: notifications.length,
+      notifications,
+    });
+  } catch (error) {
+    console.error("Get credit notifications error:", error);
+
+    return res.status(500).json({
+      message: "Failed to retrieve credit notifications",
+    });
+  }
+};
+
 module.exports = {
   createCreditTransaction,
   recordCreditPayment,
   getCustomerCreditHistory,
+  getCreditNotifications,
 };
