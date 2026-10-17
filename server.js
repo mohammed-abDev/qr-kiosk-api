@@ -24,11 +24,6 @@ app.use(
 
 app.use(express.json());
 
-// ==============================
-// UPLOADS
-// ==============================
-
-// app.use("/uploads", express.static("uploads"));
 
 // ==============================
 // ROUTES
@@ -42,6 +37,7 @@ const paymentRoutes = require("./Routes/paymentRoutes");
 const bannerRoutes = require("./Routes/bannerRoutes");
 const customerRoutes = require("./Routes/customerRoutes");
 const creditRoutes = require("./Routes/creditRoutes");
+const pushRoutes = require("./Routes/pushRoutes");
 
 app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
@@ -51,6 +47,7 @@ app.use("/api/payment-methods", paymentRoutes);
 app.use("/api/banners", bannerRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/credit", creditRoutes);
+app.use("/api/push", pushRoutes);
 
 // ==============================
 // HOME
