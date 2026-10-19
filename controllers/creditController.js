@@ -1,4 +1,5 @@
 const db = require("../db/dbConfige");
+const sendPushToAdmins = require("../utils/sendPushToAdmins");
 
 // CREATE A CREDIT PURCHASE
 const createCreditTransaction = async (req, res) => {
@@ -234,6 +235,18 @@ if (io) {
   });
 }
 
+try {
+  const pushResult = await sendPushToAdmins({
+    title: "Abdu Mart — Credit Sale",
+    body: saleMessage,
+    url: "/admin/credit-notifications",
+  });
+
+  console.log("Credit sale push result:", pushResult);
+} catch (pushError) {
+  console.error("Credit sale push failed:", pushError);
+}
+
     return res.status(201).json({
       message: "Credit purchase recorded successfully",
       transaction: {
@@ -458,6 +471,18 @@ const recordCreditPayment = async (req, res) => {
         message: paymentMessage,
         createdAt: new Date().toISOString(),
       });
+    }
+
+    try {
+      const pushResult = await sendPushToAdmins({
+        title: "Abdu Mart — Repayment Received",
+        body: paymentMessage,
+        url: "/admin/credit-notifications",
+      });
+
+      console.log("Repayment push result:", pushResult);
+    } catch (pushError) {
+      console.error("Repayment push failed:", pushError);
     }
 
     return res.status(201).json({
